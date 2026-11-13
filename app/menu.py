@@ -42,7 +42,33 @@ TITLE_MAX = 20          # WhatsApp батырма атауының шегі
 MAX_OPTIONS = 10        # WhatsApp тізіміндегі жолдар шегі
 HOME = "🏠 Басты мәзір"
 BACK = "⬅️ Артқа"
-HOME_WORDS = {"мәзір", "мазир", "меню", "menu", "0", "басты мәзір", "start", "старт"}
+HOME_WORDS = {"мәзір", "мазир", "меню", "menu", "0", "басты мәзір", "start", "старт", "главное меню"}
+
+# Екі тіл: menu.yaml ішінде `ru:` бөлімі болса, бот орысша да жауап береді.
+LABELS = {
+    "kk": {"home": HOME, "back": BACK, "switch": "🇷🇺 Русский"},
+    "ru": {"home": "🏠 Главное меню", "back": "⬅️ Назад", "switch": "🇰🇿 Қазақша"},
+}
+LANG_WORDS = {
+    "ru": {"русский", "рус", "орысша", "на русском", "по русски", "ru", "russian"},
+    "kk": {"қазақша", "казакша", "казахский", "на казахском", "kz", "kk", "kazakh"},
+}
+KK_LETTERS = set("әғқңөұүһі")
+KK_WORDS = {"салем", "салеметсиз", "сәлеметсіз", "керек", "канша", "қанша", "бар", "жок", "жоқ", "иа", "ия",
+            "рахмет", "калай", "қалай", "кайырлы", "қайырлы", "ассалаумағалейкум", "ассалаумагалейкум"}
+
+
+def detect_lang(text: str) -> str:
+    """Клиенттің бірінші хабарынан тілді болжау. Күмәнді болса — қазақша."""
+    t = (text or "").lower()
+    if any(ch in KK_LETTERS for ch in t):
+        return "kk"
+    words = _norm(t).split()
+    if any(w in KK_WORDS or w.startswith(("салем", "ассалау")) for w in words):
+        return "kk"
+    if any("а" <= ch <= "я" or ch == "ё" for ch in t):
+        return "ru"
+    return "kk"
 GREETING_STEMS = ("сәлем", "салем", "ассалау", "привет", "здравств", "добрый", "қайырлы", "hello", "hi")
 
 
@@ -78,10 +104,14 @@ def render_text(reply: MenuReply) -> str:
 
 
 class Menu:
-    def __init__(self, data: dict, source: str = "menu.yaml"):
+    def __init__(self, data: dict, source: str = "menu.yaml", lang: str = "kk"):
         if not isinstance(data, dict) or "menu" not in data:
             raise MenuError(f"{source}: 'menu' бөлімі жоқ")
         self.source = source
+        self.lang = lang
+        self.home = LABELS[lang]["home"]
+        self.back = LABELS[lang]["back"]
+        self.variants: dict[str, "Menu"] = {lang: self}
         self.welcome = str(data.get("welcome", "")).strip()
         self.root = data["menu"]
         self.forms = data.get("forms") or {}
@@ -95,7 +125,21 @@ class Menu:
 
     @classmethod
     def load(cls, path: Path) -> "Menu":
-        return cls(yaml.safe_load(path.read_text(encoding="utf-8")), source=str(path))
+        data = yaml.safe_load(path.read_text(encoding="utf-8"))
+        main = cls(data, source=str(path))
+        if isinstance(data, dict) and data.get("ru"):
+            ru = cls(data["ru"], source=f"{path} (ru)", lang="ru")
+            main.variants["ru"] = ru
+            ru.variants = main.variants
+        return main
+
+    def for_lang(self, lang: str) -> "Menu":
+        return self.variants.get(lang) or self
+
+    @property
+    def switch(self) -> str | None:
+        """Тілді ауыстыру батырмасы (екі тіл болса ғана)."""
+        return LABELS[self.lang]["switch"] if len(self.variants) > 1 else None
 
     # ---------- құрылым ----------
 
@@ -158,7 +202,9 @@ class Menu:
 
     def options(self, path: list[int]) -> list[str]:
         titles = [it["title"] for it in self.node(path).get("items") or []]
-        return titles + ([BACK] if path else [])
+        if path:
+            return titles + [self.back]
+        return titles + ([self.switch] if self.switch else [])
 
     def all_titles(self) -> list[str]:
         out = []
@@ -221,37 +267,55 @@ class MenuBot:
 
     # ---------- шешім ----------
 
-    def _reply(self, business, user, reply: MenuReply, back, form=None) -> MenuReply:
-        state = {"shown": reply.options, "back": back}
+    def _reply(self, m: Menu, business, user, reply: MenuReply, back, form=None) -> MenuReply:
+        state = {"shown": reply.options, "back": back, "lang": m.lang}
         if form:
             state["form"] = form
         self.store.set_state(business.id, user, state)
         return reply
 
     def _show(self, m: Menu, business, user, path: list[int], intro: str = "", reason: str = "menu") -> MenuReply:
-        node_text = (m.node(path).get("text") or "Таңдаңыз 👇").strip()
+        default = "Выберите 👇" if m.lang == "ru" else "Таңдаңыз 👇"
+        node_text = (m.node(path).get("text") or default).strip()
         text = f"{intro}\n\n{node_text}" if intro else node_text
-        return self._reply(business, user, MenuReply(text.strip(), m.options(path), reason=reason),
+        return self._reply(m, business, user, MenuReply(text.strip(), m.options(path), reason=reason),
                            back=path[:-1] if path else None)
 
+    @staticmethod
+    def _lang_command(text: str) -> str | None:
+        t = _norm(text)
+        for lang, words in LANG_WORDS.items():
+            if t in words:
+                return lang
+        return None
+
     def _decide(self, business, user: str, text: str) -> MenuReply:
-        m = self.menu_for(business)
+        base = self.menu_for(business)
         state = self.store.get_state(business.id, user)
 
-        if state is None:                                   # жаңа әңгіме
+        if state is None:                                   # жаңа әңгіме: тілді бірінші хабардан анықтаймыз
+            m = base.for_lang(detect_lang(text))
             return self._show(m, business, user, [], intro=m.welcome, reason="welcome")
 
+        m = base.for_lang(state.get("lang") or "kk")
         shown = state.get("shown") or []
+
+        # тілді ауыстыру: батырма немесе "русский" / "қазақша" деп жазса
+        wanted = self._lang_command(text)
+        if m.switch and (m.find(text, shown) == m.switch or (wanted and wanted != m.lang)):
+            other = next(v for k, v in base.variants.items() if k != m.lang)
+            return self._show(other, business, user, [], intro=other.welcome, reason="welcome")
+
         if _is_greeting(text) and not state.get("form"):
             return self._show(m, business, user, [], intro=m.welcome, reason="welcome")
-        if _norm(text) in HOME_WORDS or m.find(text, shown) == HOME:
+        if _norm(text) in HOME_WORDS or m.find(text, shown) == m.home:
             return self._show(m, business, user, [])
 
         if state.get("form"):
             return self._form_step(m, business, user, state, text)
 
         choice = m.find(text, shown)
-        if choice == BACK and state.get("back") is not None:
+        if choice == m.back and state.get("back") is not None:
             return self._show(m, business, user, state["back"])
         target = m.path_of(choice) if choice else None
         if target is None:
@@ -260,7 +324,7 @@ class MenuBot:
             target = m.path_of(alt) if alt else None
         if target is None:
             reply = MenuReply(f"{m.fallback}", shown or m.options([]), reason="fallback")
-            return self._reply(business, user, reply, back=state.get("back"))
+            return self._reply(m, business, user, reply, back=state.get("back"))
         return self._open(m, business, user, target)
 
     def _open(self, m: Menu, business, user: str, path: list[int]) -> MenuReply:
@@ -270,17 +334,18 @@ class MenuBot:
             return self._show(m, business, user, path)
         if item.get("action") == "form":
             form = {"name": item["form"], "step": 0, "answers": []}
-            return self._reply(business, user, self._ask(m, item["form"], 0), back=None, form=form)
+            return self._reply(m, business, user, self._ask(m, item["form"], 0), back=None, form=form)
         if item.get("action") == "human":
-            return self._reply(business, user, MenuReply(m.human_text, [HOME], handoff=True, reason="human"), back=None)
-        opts = list(dict.fromkeys(list(item.get("also") or []) + ([BACK] if parent else []) + [HOME]))
-        return self._reply(business, user, MenuReply(str(item["answer"]).strip(), opts, reason="answer"),
+            return self._reply(m, business, user, MenuReply(m.human_text, [m.home], handoff=True, reason="human"),
+                               back=None)
+        opts = list(dict.fromkeys(list(item.get("also") or []) + ([m.back] if parent else []) + [m.home]))
+        return self._reply(m, business, user, MenuReply(str(item["answer"]).strip(), opts, reason="answer"),
                            back=parent if parent else None)
 
     @staticmethod
     def _ask(m: Menu, form: str, step: int) -> MenuReply:
         s = m.forms[form]["steps"][step]
-        return MenuReply(str(s["ask"]).strip(), list(s.get("options") or []) + [HOME], reason="form")
+        return MenuReply(str(s["ask"]).strip(), list(s.get("options") or []) + [m.home], reason="form")
 
     def _form_step(self, m: Menu, business, user: str, state: dict, text: str) -> MenuReply:
         f = state["form"]
@@ -288,12 +353,15 @@ class MenuBot:
         i = f.get("step", 0)
         value = m.find(text, steps[i].get("options") or []) or text.strip()
         if not value:                                     # бос хабар (сурет т.б.) — сұрақты қайталаймыз
-            return self._reply(business, user, self._ask(m, f["name"], i), back=None, form=f)
+            return self._reply(m, business, user, self._ask(m, f["name"], i), back=None, form=f)
         answers = f.get("answers", []) + [value]
         if i + 1 < len(steps):
             nf = {**f, "step": i + 1, "answers": answers}
-            return self._reply(business, user, self._ask(m, f["name"], i + 1), back=None, form=nf)
+            return self._reply(m, business, user, self._ask(m, f["name"], i + 1), back=None, form=nf)
         summary = "\n".join(f"{s.get('label') or s['ask']}: {a}" for s, a in zip(steps, answers))
-        done = str(m.forms[f["name"]].get("done") or "Рахмет! Өтініміңіз қабылданды ✅").strip()
-        return self._reply(business, user, MenuReply(done, [HOME], lead=True, reason="lead", summary=summary),
+        if m.lang != "kk":
+            summary = f"Тілі: {m.lang}\n" + summary
+        default_done = "Спасибо! Заявка принята ✅" if m.lang == "ru" else "Рахмет! Өтініміңіз қабылданды ✅"
+        done = str(m.forms[f["name"]].get("done") or default_done).strip()
+        return self._reply(m, business, user, MenuReply(done, [m.home], lead=True, reason="lead", summary=summary),
                            back=None)

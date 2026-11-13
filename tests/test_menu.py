@@ -56,7 +56,8 @@ def test_duplicate_title_rejected():
 def test_first_message_shows_welcome_and_menu(zhas):
     r = MenuBot(Store()).answer(zhas, "u1", "Сәлем, бот қанша тұрады?")
     assert r.reason == "welcome" and "JasaBot" in r.text
-    assert r.options[0] == "🤖 Бот не істейді" and len(r.options) == 6
+    assert r.options[0] == "🤖 Бот не істейді" and len(r.options) == 7
+    assert r.options[-1] == "🇷🇺 Русский"
 
 
 def test_choose_by_number_and_by_title(zhas):
@@ -203,3 +204,46 @@ def test_greeting_does_not_break_form(zhas):
     bot = MenuBot(Store())
     r = chat(bot, zhas, "u1", "сәлем", "✅ Қосылу", "Сәлем")
     assert r.reason == "form"
+
+
+# ---------- екі тіл ----------
+
+from app.menu import detect_lang
+
+
+@pytest.mark.parametrize("text,lang", [
+    ("Сәлем", "kk"), ("салем", "kk"), ("бот керек", "kk"), ("Ассалаумағалейкум", "kk"),
+    ("Здравствуйте", "ru"), ("Привет, сколько стоит?", "ru"), ("hi", "kk"), ("", "kk"),
+])
+def test_detect_lang(text, lang):
+    assert detect_lang(text) == lang
+
+
+def test_russian_first_message_gets_russian_menu(zhas):
+    bot = MenuBot(Store())
+    r = bot.answer(zhas, "u1", "Здравствуйте")
+    assert "Здравствуйте" in r.text and r.options[0] == "🤖 Что умеет бот"
+    assert r.options[-1] == "🇰🇿 Қазақша"
+    r = bot.answer(zhas, "u1", "2")
+    assert "10 000" in r.text and r.options[-1] == "🏠 Главное меню"
+    r = bot.answer(zhas, "u1", "🏠 Главное меню")
+    assert r.options[0] == "🤖 Что умеет бот"
+
+
+def test_switch_language_by_button_and_word(zhas):
+    bot = MenuBot(Store())
+    bot.answer(zhas, "u1", "Сәлем")
+    r = bot.answer(zhas, "u1", "🇷🇺 Русский")
+    assert r.options[0] == "🤖 Что умеет бот"
+    r = bot.answer(zhas, "u1", "қазақша")
+    assert r.options[0] == "🤖 Бот не істейді"
+
+
+def test_russian_form_lead(zhas):
+    bot = MenuBot(Store())
+    bot.answer(zhas, "u1", "Привет")
+    r = bot.answer(zhas, "u1", "✅ Подключиться")
+    assert r.reason == "form" and "Клиника" in r.options and "🏠 Главное меню" in r.options
+    bot.answer(zhas, "u1", "Клиника")
+    r = bot.answer(zhas, "u1", "завтра 14:00")
+    assert r.lead and "Спасибо" in r.text and "Тілі: ru" in r.summary and "Клиника" in r.summary
