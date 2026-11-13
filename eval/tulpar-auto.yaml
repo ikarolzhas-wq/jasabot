@@ -1,0 +1,55 @@
+cases:
+  - q: Май ауыстыру қанша тұрады?
+    expect: answer
+    must_contain: ["4000", "4 000"]
+  - q: Компьютерлік диагностика бағасы қандай?
+    expect: answer
+    must_contain: ["5000", "5 000"]
+  - q: Алдыңғы колодканы ауыстыру неше тұрады?
+    expect: answer
+    must_contain: ["6000", "6 000"]
+  - q: R17 дөңгелек ауыстыру қанша?
+    expect: answer
+    must_contain: ["12000", "12 000"]
+  - q: Кондиционерге фреон толтырасыздар ма?
+    expect: answer
+    must_contain: ["12000", "12 000"]
+  - q: Жексенбі ашықсыздар ма?
+    expect: answer
+    must_contain: ["демалыс", "жұмыс істемей", "жабық"]
+  - q: Жұмысқа кепілдік бересіздер ме?
+    expect: answer
+    must_contain: ["1 ай", "бір ай"]
+  - q: Өз бөлшегімді әкелсем бола ма?
+    expect: answer
+    must_contain: ["кепілдік", "болады", "әкелуге"]
+  - q: Kaspi Red-пен бөліп төлеуге бола ма?
+    expect: answer
+    must_contain: ["50000", "50 000"]
+  - q: Мекенжайларыңыз қайда?
+    expect: answer
+    must_contain: ["Жеңіс"]
+  - q: Сколько стоит хранение шин?
+    expect: answer
+    must_contain: ["15000", "15 000"]
+  - q: Диагностиканың ақысы жөндеуден шегеріле ме?
+    expect: answer
+    must_contain: ["шегер", "иә", "Иә"]
+
+  - q: Жүк көлігін жөндейсіздер ме?
+    expect: answer
+    must_contain: ["жоқ", "істемей", "жеңіл"]
+
+  # --- Құжатта ЖОҚ ---
+  - q: Көлікті бояйсыздар ма?
+    expect: handoff
+  - q: Двигательді күрделі жөндеу қанша?
+    expect: handoff
+  - q: Toyota Camry 2015 үшін қандай май жақсы?
+    expect: handoff
+  - q: Курс доллара сегодня какой?
+    expect: off_topic
+
+  # --- Өтінім ---
+  - q: Ертең май ауыстыруға жазылайын, Toyota Camry 2015
+    expect: lead

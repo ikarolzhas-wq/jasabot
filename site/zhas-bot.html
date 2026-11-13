@@ -1,0 +1,805 @@
+<title>JasaBot</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<meta name="description" content="JasaBot — Қазақстандағы бизнеске WhatsApp бот жасаймыз.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=JetBrains+Mono:wght@500&family=Unbounded:wght@500;700&display=swap">
+<style>
+/* Layout: a quiet two-column page; the hero carries one live object — a phone running the real menu bot — and everything below is plain, well-spaced reading. */
+:root {
+  --bg: #f2f6f7;
+  --surface: #ffffff;
+  --ink: #0f2129;
+  --muted: #536d76;
+  --line: #d3e0e4;
+  --sky: #0a7ea4;          /* Kazakh sky blue, deepened for contrast */
+  --sky-ink: #ffffff;
+  --sky-soft: #dcf0f6;
+  --gold: #e3a90a;         /* steppe-sun gold, used sparingly */
+  --gold-ink: #2a2000;
+  --chat-bg: #e4edef;
+  --bubble-bot: #ffffff;
+  --bubble-me: #cbe8f2;
+  --ok: #1d8657;
+  --shadow: 0 18px 40px -22px rgba(15, 33, 41, .35);
+
+  --display: "Unbounded", "Segoe UI", Roboto, Arial, sans-serif;
+  --body: "IBM Plex Sans", "Segoe UI", Roboto, Arial, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+
+  --step--1: .875rem;
+  --step-0: 1rem;
+  --step-1: 1.2rem;
+  --step-2: 1.55rem;
+  --step-3: clamp(1.9rem, 4.6vw, 3.1rem);
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b161b; --surface: #12222a; --ink: #e3edf0; --muted: #93a9b1; --line: #23373f;
+    --sky: #4fc0e3; --sky-ink: #03202b; --sky-soft: #13323f; --gold: #f0c12c; --gold-ink: #241b00;
+    --chat-bg: #0f1d23; --bubble-bot: #183039; --bubble-me: #1c4757; --ok: #49c38c;
+    --shadow: 0 18px 40px -22px rgba(0, 0, 0, .7);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b161b; --surface: #12222a; --ink: #e3edf0; --muted: #93a9b1; --line: #23373f;
+  --sky: #4fc0e3; --sky-ink: #03202b; --sky-soft: #13323f; --gold: #f0c12c; --gold-ink: #241b00;
+  --chat-bg: #0f1d23; --bubble-bot: #183039; --bubble-me: #1c4757; --ok: #49c38c;
+  --shadow: 0 18px 40px -22px rgba(0, 0, 0, .7);
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--body);
+  font-size: var(--step-0);
+  line-height: 1.6;
+  -webkit-font-smoothing: antialiased;
+}
+a { color: var(--sky); }
+:focus-visible { outline: 3px solid var(--gold); outline-offset: 2px; border-radius: 6px; }
+
+.wrap {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding-left: max(16px, env(safe-area-inset-left, 0px));
+  padding-right: max(16px, env(safe-area-inset-right, 0px));
+}
+
+/* ---------- header ---------- */
+.top { padding-block: 18px; }
+.top .wrap { display: flex; align-items: center; justify-content: space-between; gap: 16px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; text-decoration: none; color: var(--ink); }
+.brand-mark {
+  width: 34px; height: 34px; border-radius: 10px; background: var(--sky); color: var(--sky-ink);
+  display: grid; place-items: center; font-family: var(--display); font-weight: 700; font-size: 15px;
+}
+.brand-name { font-family: var(--display); font-weight: 700; font-size: 1.05rem; letter-spacing: .01em; }
+.nav { display: flex; align-items: center; gap: 18px; flex-wrap: wrap; }
+.nav a.link { color: var(--muted); text-decoration: none; font-size: var(--step--1); }
+.nav a.link:hover { color: var(--ink); }
+.langs { display: inline-flex; border: 1px solid var(--line); border-radius: 999px; padding: 3px; background: var(--surface); }
+.langs button {
+  border: 0; background: transparent; color: var(--muted); font: 500 12px/1 var(--mono);
+  padding: 7px 10px; border-radius: 999px; cursor: pointer; letter-spacing: .04em;
+}
+.langs button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+
+.btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+  font: 600 var(--step-0)/1.2 var(--body); text-decoration: none; cursor: pointer;
+  padding: 13px 20px; border-radius: 12px; border: 1px solid transparent;
+}
+.btn-primary { background: var(--sky); color: var(--sky-ink); }
+.btn-primary:hover { filter: brightness(1.06); }
+.btn-ghost { background: transparent; color: var(--ink); border-color: var(--line); }
+.btn-ghost:hover { border-color: var(--muted); }
+.btn-sm { padding: 9px 14px; font-size: var(--step--1); border-radius: 10px; }
+
+/* ---------- hero ---------- */
+.hero { padding-block: 28px 64px; }
+.hero .wrap { display: grid; grid-template-columns: minmax(0, 1.08fr) minmax(0, .92fr); gap: 48px; align-items: start; }
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 8px; font: 500 12px/1.3 var(--mono);
+  text-transform: uppercase; letter-spacing: .08em; color: var(--muted);
+}
+.eyebrow::before { content: ""; width: 18px; height: 3px; border-radius: 2px; background: var(--gold); }
+h1 {
+  font-family: var(--display); font-weight: 700; font-size: var(--step-3); line-height: 1.12;
+  letter-spacing: -.01em; margin: 16px 0 18px; text-wrap: balance;
+}
+h1 .wa { color: var(--sky); }
+.lead { font-size: var(--step-1); color: var(--muted); max-width: 36em; margin: 0 0 28px; text-wrap: pretty; }
+.cta-row { display: flex; gap: 12px; flex-wrap: wrap; }
+.facts { display: flex; flex-wrap: wrap; gap: 10px 22px; margin: 30px 0 0; padding: 0; list-style: none; }
+.facts li { display: flex; align-items: center; gap: 8px; font-size: var(--step--1); color: var(--ink); }
+.facts li::before {
+  content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); flex: none;
+}
+
+/* ---------- phone demo ---------- */
+.demo { display: grid; gap: 14px; justify-items: center; }
+.phone {
+  width: 100%; max-width: 380px; border-radius: 30px; background: var(--surface);
+  border: 1px solid var(--line); box-shadow: var(--shadow); padding: 10px; overflow: hidden;
+}
+.phone-inner { border-radius: 22px; overflow: hidden; background: var(--chat-bg); display: flex; flex-direction: column; height: 520px; }
+.chat-head {
+  display: flex; align-items: center; gap: 10px; padding: 12px 14px; background: var(--surface);
+  border-bottom: 1px solid var(--line);
+}
+.avatar {
+  width: 36px; height: 36px; border-radius: 50%; background: var(--gold); color: var(--gold-ink);
+  display: grid; place-items: center; font-weight: 600; flex: none;
+}
+.chat-title { font-weight: 600; font-size: .95rem; line-height: 1.2; }
+.chat-sub { font-size: 12px; color: var(--muted); line-height: 1.2; }
+.chat-head > div { min-width: 0; }
+.reset {
+  margin-left: auto; flex: none; white-space: nowrap; border: 1px solid var(--line); background: transparent; color: var(--muted);
+  font: 500 12px/1 var(--body); padding: 7px 10px; border-radius: 8px; cursor: pointer;
+}
+.reset:hover { color: var(--ink); }
+.log { flex: 1; overflow-y: auto; padding: 14px 12px; display: flex; flex-direction: column; gap: 8px; scroll-behavior: smooth; }
+.msg { max-width: 86%; display: flex; flex-direction: column; gap: 6px; }
+.msg.me { align-self: flex-end; }
+.bubble {
+  padding: 8px 11px 6px; border-radius: 14px; font-size: .92rem; line-height: 1.45;
+  white-space: pre-line; overflow-wrap: anywhere; box-shadow: 0 1px 0 rgba(0,0,0,.06);
+}
+.msg.bot .bubble { background: var(--bubble-bot); border-top-left-radius: 4px; }
+.msg.me .bubble { background: var(--bubble-me); border-top-right-radius: 4px; }
+.time { display: block; text-align: right; font: 500 10px/1 var(--mono); color: var(--muted); margin-top: 4px; font-variant-numeric: tabular-nums; }
+.opts { display: grid; gap: 5px; }
+.opt {
+  border: 0; background: var(--bubble-bot); color: var(--sky); font: 600 .88rem/1.25 var(--body);
+  padding: 10px 12px; border-radius: 12px; cursor: pointer; text-align: center;
+  box-shadow: 0 1px 0 rgba(0,0,0,.06);
+}
+.opt:hover:not(:disabled) { background: var(--sky-soft); }
+.opt:disabled { color: var(--muted); cursor: default; opacity: .7; }
+.list { display: grid; gap: 0; background: var(--bubble-bot); border-radius: 12px; overflow: hidden; }
+.list .opt { border-radius: 0; box-shadow: none; text-align: left; border-top: 1px solid var(--line); }
+.list .opt:first-child { border-top: 0; }
+.typing { align-self: flex-start; background: var(--bubble-bot); border-radius: 14px; padding: 8px 12px; font-size: 12px; color: var(--muted); }
+.compose { display: flex; gap: 8px; padding: 10px; background: var(--surface); border-top: 1px solid var(--line); }
+.compose input {
+  flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 999px; padding: 10px 14px;
+  font: 400 .92rem var(--body); background: var(--bg); color: var(--ink);
+}
+.compose button {
+  border: 0; border-radius: 999px; width: 42px; height: 42px; flex: none; cursor: pointer;
+  background: var(--sky); color: var(--sky-ink); display: grid; place-items: center;
+}
+.demo-cap { max-width: 380px; text-align: center; font-size: var(--step--1); color: var(--muted); margin: 0; }
+.demo-cap strong { color: var(--ink); font-weight: 600; }
+
+.owner {
+  width: 100%; max-width: 380px; background: var(--surface); border: 1px solid var(--line);
+  border-radius: 16px; padding: 14px 16px; display: grid; gap: 8px;
+}
+.owner-h { display: flex; align-items: center; gap: 8px; font: 500 11px/1.3 var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); }
+.owner-h::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--line); }
+.owner.has-lead .owner-h::before { background: var(--ok); }
+.owner-empty { margin: 0; font-size: var(--step--1); color: var(--muted); }
+.lead-card { border-left: 3px solid var(--gold); padding: 2px 0 2px 12px; font-size: .9rem; white-space: pre-line; }
+.lead-card b { display: block; margin-bottom: 2px; }
+
+/* ---------- sections ---------- */
+section.block { padding-block: 64px; border-top: 1px solid var(--line); }
+h2 {
+  font-family: var(--display); font-weight: 500; font-size: var(--step-2); line-height: 1.2;
+  margin: 0 0 32px; text-wrap: balance; letter-spacing: -.005em;
+}
+h3 { font-size: var(--step-1); line-height: 1.3; margin: 0 0 6px; font-weight: 600; }
+p { margin: 0; }
+.muted { color: var(--muted); }
+
+.steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 32px; margin: 0; padding: 0; list-style: none; }
+.steps li { display: grid; gap: 10px; align-content: start; min-width: 0; }
+.num {
+  font: 500 13px/1 var(--mono); color: var(--sky); border: 1px solid var(--sky); width: 30px; height: 30px;
+  border-radius: 50%; display: grid; place-items: center; font-variant-numeric: tabular-nums;
+}
+
+.features { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 28px 48px; margin-top: 56px; }
+.features > div { min-width: 0; padding-top: 18px; border-top: 2px solid var(--ink); }
+
+.sectors { display: flex; flex-wrap: wrap; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.sectors li { border: 1px solid var(--line); background: var(--surface); padding: 9px 14px; border-radius: 999px; font-size: var(--step--1); }
+
+.plans { display: grid; grid-template-columns: minmax(0, 560px); gap: 20px; }
+.plan {
+  background: var(--surface); border: 1px solid var(--line); border-radius: 18px; padding: 26px;
+  display: grid; gap: 14px; align-content: start; min-width: 0;
+}
+.plan.main { border: 2px solid var(--sky); }
+.plan-top { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+.plan-name { font-family: var(--display); font-weight: 500; font-size: var(--step-1); }
+.badge { font: 500 11px/1 var(--mono); text-transform: uppercase; letter-spacing: .06em; padding: 6px 9px; border-radius: 999px; }
+.badge.now { background: var(--sky-soft); color: var(--sky); }
+.badge.soon { background: var(--gold); color: var(--gold-ink); }
+.price { display: flex; align-items: baseline; gap: 6px; }
+.price .amount { font-family: var(--display); font-weight: 700; font-size: 2.1rem; font-variant-numeric: tabular-nums; letter-spacing: -.01em; }
+.price .per { color: var(--muted); }
+.plan ul { margin: 0; padding: 0; list-style: none; display: grid; gap: 8px; }
+.plan li { display: flex; gap: 10px; font-size: .95rem; }
+.plan li::before { content: "✓"; color: var(--ok); font-weight: 600; flex: none; }
+.plan.soonp li::before { color: var(--muted); }
+.terms { margin-top: 28px; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; }
+.terms div { min-width: 0; font-size: var(--step--1); padding: 14px 16px; border-radius: 12px; background: var(--sky-soft); }
+.terms-h { font: 500 12px/1.3 var(--mono); text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 36px 0 12px; }
+
+.join-note { margin-top: 26px; font-size: var(--step--1); color: var(--muted); }
+
+.faq { display: grid; gap: 0; max-width: 760px; }
+.faq details { border-top: 1px solid var(--line); padding-block: 16px; }
+.faq details:last-child { border-bottom: 1px solid var(--line); }
+.faq summary { cursor: pointer; font-weight: 600; font-size: var(--step-0); list-style: none; display: flex; justify-content: space-between; gap: 16px; }
+.faq summary::-webkit-details-marker { display: none; }
+.faq summary::after { content: "+"; font-family: var(--mono); color: var(--sky); flex: none; }
+.faq details[open] summary::after { content: "−"; }
+.faq details p { margin-top: 10px; color: var(--muted); max-width: 62ch; }
+
+.contact { background: var(--ink); color: var(--bg); }
+.contact section.block { border-top: 0; }
+.contact h2 { color: var(--bg); margin-bottom: 12px; }
+.contact .wrap { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 32px; align-items: center; }
+.contact p.desc { color: color-mix(in srgb, var(--bg) 72%, var(--ink)); max-width: 40em; }
+.contact-box { display: grid; gap: 10px; justify-items: start; }
+.phone-num { font: 500 1.5rem/1.2 var(--mono); letter-spacing: .02em; user-select: all; font-variant-numeric: tabular-nums; }
+.contact .insta { color: color-mix(in srgb, var(--bg) 72%, var(--ink)); font-size: var(--step--1); text-underline-offset: 3px; }
+.contact .insta:hover { color: var(--bg); }
+footer a { color: var(--muted); }
+.contact .who { font-size: var(--step--1); color: color-mix(in srgb, var(--bg) 65%, var(--ink)); }
+.contact .btn-ghost { color: var(--bg); border-color: color-mix(in srgb, var(--bg) 35%, var(--ink)); }
+.contact .btn-primary { background: var(--gold); color: var(--gold-ink); }
+.contact-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+.soon-num { font-size: var(--step-0); color: color-mix(in srgb, var(--bg) 72%, var(--ink)); }
+
+footer { padding-block: 28px; font-size: var(--step--1); color: var(--muted); }
+footer .wrap { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; }
+
+@media (max-width: 900px) {
+  .hero .wrap { grid-template-columns: minmax(0, 1fr); gap: 40px; }
+  .terms { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 720px) {
+  .steps, .features, .plans { grid-template-columns: minmax(0, 1fr); }
+  .nav a.link { display: none; }
+  .contact .wrap { grid-template-columns: minmax(0, 1fr); }
+  section.block { padding-block: 48px; }
+}
+@media (max-width: 420px) {
+  .terms { grid-template-columns: minmax(0, 1fr); }
+  .phone-inner { height: 480px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .log { scroll-behavior: auto; }
+}
+</style>
+
+<header class="top">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="JasaBot">
+      <span class="brand-mark" aria-hidden="true">Jb</span>
+      <span class="brand-name">JasaBot</span>
+    </a>
+    <nav class="nav" aria-label="Menu">
+      <a class="link" href="#how" data-i18n="nav_how">Қалай жұмыс істейді</a>
+      <a class="link" href="#pricing" data-i18n="nav_price">Бағасы</a>
+      <a class="link" href="#faq" data-i18n="nav_faq">Сұрақтар</a>
+      <div class="langs" role="group" aria-label="Тіл / Язык / Language">
+        <button type="button" data-lang="kk" aria-pressed="true">ҚАЗ</button>
+        <button type="button" data-lang="ru" aria-pressed="false">РУС</button>
+        <button type="button" data-lang="en" aria-pressed="false">ENG</button>
+      </div>
+    </nav>
+  </div>
+</header>
+
+<main id="top">
+  <section class="hero">
+    <div class="wrap">
+      <div>
+        <span class="eyebrow" data-i18n="hero_eyebrow">Қазақстан бойынша қызмет көрсету бизнесіне</span>
+        <h1 data-i18n="hero_h1">Клиенттеріңізге WhatsApp-та түнде де жауап беретін бот</h1>
+        <p class="lead" data-i18n="hero_lead">Бағаларды, жұмыс уақытын, мекенжайды айтады. Жазылуды қабылдап, өтінімді сізге жеткізеді. Нөміріңіз де, WhatsApp Business қосымшаңыз да сол күйі қалады.</p>
+        <div class="cta-row">
+          <a class="btn btn-primary" href="#contact" data-i18n="hero_btn">7 күн тегін сынау</a>
+          <a class="btn btn-ghost" href="#demo" data-i18n="hero_btn2">Демоны көру</a>
+        </div>
+        <ul class="facts">
+          <li data-i18n="fact1">Орнату тегін</li>
+          <li data-i18n="fact2">10 000 ₸/ай</li>
+          <li data-i18n="fact3">Ресми WhatsApp Business API</li>
+        </ul>
+      </div>
+
+      <div class="demo" id="demo">
+        <div class="phone">
+          <div class="phone-inner">
+            <div class="chat-head">
+              <span class="avatar" aria-hidden="true">А</span>
+              <div>
+                <div class="chat-title">«Ару» сұлулық салоны</div>
+                <div class="chat-sub">бот · бірден жауап береді</div>
+              </div>
+              <button type="button" class="reset" id="reset" data-i18n="demo_reset">Қайта бастау</button>
+            </div>
+            <div class="log" id="log" aria-live="polite"></div>
+            <form class="compose" id="compose" autocomplete="off">
+              <input id="say" type="text" placeholder="Хабар жазыңыз…" aria-label="Хабар">
+              <button type="submit" aria-label="Жіберу">
+                <svg width="18" height="18" viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M3 20.5V14l9-2-9-2V3.5L22 12z"/></svg>
+              </button>
+            </form>
+          </div>
+        </div>
+        <p class="demo-cap"><strong data-i18n="demo_cap">Үлгі: «Ару» сұлулық салоны. Батырмаларды басып көріңіз.</strong><br><span data-i18n="demo_note">Салон ойдан алынған, бағалар мысал үшін. Демо қазақша.</span></p>
+        <div class="owner" id="owner">
+          <div class="owner-h" data-i18n="owner_title">Салон иесінің телефонында</div>
+          <p class="owner-empty" id="owner-empty" data-i18n="owner_empty">Клиент жазылса, өтінім осында келеді.</p>
+          <div id="owner-feed" class="owner-feed"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="how">
+    <div class="wrap">
+      <h2 data-i18n="how_h">Қалай жұмыс істейді</h2>
+      <ol class="steps">
+        <li><span class="num">1</span><h3 data-i18n="how1_t">Клиент жазады</h3><p class="muted" data-i18n="how1_d"></p></li>
+        <li><span class="num">2</span><h3 data-i18n="how2_t">Бот бірден жауап береді</h3><p class="muted" data-i18n="how2_d"></p></li>
+        <li><span class="num">3</span><h3 data-i18n="how3_t">Сіз өтінім аласыз</h3><p class="muted" data-i18n="how3_d"></p></li>
+      </ol>
+      <div class="features">
+        <div><h3 data-i18n="f1_t"></h3><p class="muted" data-i18n="f1_d"></p></div>
+        <div><h3 data-i18n="f2_t"></h3><p class="muted" data-i18n="f2_d"></p></div>
+        <div><h3 data-i18n="f3_t"></h3><p class="muted" data-i18n="f3_d"></p></div>
+        <div><h3 data-i18n="f4_t"></h3><p class="muted" data-i18n="f4_d"></p></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="who">
+    <div class="wrap">
+      <h2 data-i18n="who_h">Кімдерге лайық</h2>
+      <ul class="sectors">
+        <li data-i18n="sec1"></li><li data-i18n="sec2"></li><li data-i18n="sec3"></li><li data-i18n="sec4"></li>
+        <li data-i18n="sec5"></li><li data-i18n="sec6"></li><li data-i18n="sec7"></li><li data-i18n="sec8"></li>
+      </ul>
+    </div>
+  </section>
+
+  <section class="block" id="pricing">
+    <div class="wrap">
+      <h2 data-i18n="price_h">Бағасы</h2>
+      <div class="plans">
+        <article class="plan main">
+          <div class="plan-top"><span class="plan-name" data-i18n="p1_name">Базалық</span></div>
+          <div class="price"><span class="amount"><span data-i18n="p1_price">10 000</span> ₸</span><span class="per" data-i18n="per"></span></div>
+          <p class="muted" data-i18n="p1_d"></p>
+          <ul><li data-i18n="p1_l1"></li><li data-i18n="p1_l2"></li><li data-i18n="p1_l3"></li><li data-i18n="p1_l4"></li></ul>
+        </article>
+      </div>
+      <p class="terms-h" data-i18n="terms_h">Шарттары</p>
+      <div class="terms">
+        <div data-i18n="t1"></div><div data-i18n="t2"></div><div data-i18n="t3"></div><div data-i18n="t4"></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="block" id="join">
+    <div class="wrap">
+      <h2 data-i18n="join_h">Қалай қосыламыз</h2>
+      <ol class="steps">
+        <li><span class="num">1</span><h3 data-i18n="j1_t"></h3><p class="muted" data-i18n="j1_d"></p></li>
+        <li><span class="num">2</span><h3 data-i18n="j2_t"></h3><p class="muted" data-i18n="j2_d"></p></li>
+        <li><span class="num">3</span><h3 data-i18n="j3_t"></h3><p class="muted" data-i18n="j3_d"></p></li>
+      </ol>
+      <p class="join-note" data-i18n="join_note"></p>
+    </div>
+  </section>
+
+  <section class="block" id="faq">
+    <div class="wrap">
+      <h2 data-i18n="faq_h">Жиі сұрақтар</h2>
+      <div class="faq">
+        <details><summary data-i18n="q1"></summary><p data-i18n="a1"></p></details>
+        <details><summary data-i18n="q2"></summary><p data-i18n="a2"></p></details>
+        <details><summary data-i18n="q3"></summary><p data-i18n="a3"></p></details>
+        <details><summary data-i18n="q4"></summary><p data-i18n="a4"></p></details>
+      </div>
+    </div>
+  </section>
+
+  <div class="contact" id="contact">
+    <section class="block">
+      <div class="wrap">
+        <div>
+          <h2 data-i18n="contact_h">Тегін сынақты бастаңыз</h2>
+          <p class="desc" data-i18n="contact_d"></p>
+        </div>
+        <div class="contact-box">
+          <div id="num-wrap" hidden>
+            <div class="phone-num" id="phone-num"></div>
+          </div>
+          <div class="soon-num" id="num-soon" data-i18n="phone_soon"></div>
+          <div class="contact-actions" id="num-actions" hidden>
+            <a class="btn btn-primary btn-sm" id="wa-link" href="#" target="_blank" rel="noopener" data-i18n="open_wa"></a>
+            <button type="button" class="btn btn-ghost btn-sm" id="copy" data-i18n="copy"></button>
+          </div>
+          <a class="insta" href="https://www.instagram.com/jasabot.kz/" target="_blank" rel="noopener">Instagram · @jasabot.kz</a>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span data-i18n="footer">JasaBot · Қазақстан</span>
+    <a href="https://www.instagram.com/jasabot.kz/" target="_blank" rel="noopener">@jasabot.kz</a>
+  </div>
+</footer>
+
+<script>
+/* ===== Байланыс нөмірі: SIM-карта алған соң осында жаз, мысалы "+7 700 123 45 67" ===== */
+const CONTACT_PHONE = "+7 702 114 38 55";
+
+const T = {
+  kk: {
+    nav_how: "Қалай жұмыс істейді", nav_price: "Бағасы", nav_faq: "Сұрақтар",
+    hero_eyebrow: "Қазақстан бойынша қызмет көрсету бизнесіне",
+    hero_h1: "Клиенттеріңізге WhatsApp-та түнде де жауап беретін бот",
+    hero_lead: "Бағаларды, жұмыс уақытын, мекенжайды айтады. Жазылуды қабылдап, өтінімді сізге жеткізеді. Нөміріңіз де, WhatsApp Business қосымшаңыз да сол күйі қалады.",
+    hero_btn: "7 күн тегін сынау", hero_btn2: "Демоны көру",
+    fact1: "Орнату тегін", fact2: "10 000 ₸/ай", fact3: "Ресми WhatsApp Business API",
+    demo_cap: "Үлгі: «Ару» сұлулық салоны. Батырмаларды басып көріңіз.",
+    demo_note: "Салон ойдан алынған, бағалар мысал үшін. Демо қазақша.",
+    demo_reset: "Қайта бастау",
+    owner_title: "Салон иесінің телефонында", owner_empty: "Клиент жазылса, өтінім осында келеді.",
+    how_h: "Қалай жұмыс істейді",
+    how1_t: "Клиент жазады", how1_d: "Сіздің WhatsApp нөміріңізге, күндіз де, түнде де. Клиентке ештеңе орнатудың қажеті жоқ.",
+    how2_t: "Бот бірден жауап береді", how2_d: "Батырмалы мәзір: бағалар, уақыт пен мекенжай, жеңілдіктер, жазылу. Жауаптарды сіз бересіз, бот өзінен ештеңе қоспайды.",
+    how3_t: "Сіз өтінім аласыз", how3_d: "Жазылу өтінімі мен барлық әңгіме телефоныңыздағы WhatsApp Business-те көрінеді. Өзіңіз жазсаңыз, бот сол клиентке араласпайды.",
+    f1_t: "Нөміріңіз өзгермейді", f1_d: "Бот қазіргі WhatsApp Business нөміріңізге қосылады. Клиенттер бұрынғыдай жаза береді.",
+    f2_t: "Ресми жол", f2_d: "Meta-ның ресми WhatsApp Business API-і арқылы жұмыс істейді. Телефоныңыз өшіп тұрса да, бот жауап береді.",
+    f3_t: "Басқару сізде", f3_d: "Кез келген чатқа өзіңіз жаза аласыз. Сол кезде бот бұл клиентке бірнеше сағат жазбайды.",
+    f4_t: "Сіздің сөзіңізбен", f4_d: "Мәзір мен жауаптарды сіздің ақпаратыңыздан жасаймыз: қазақша немесе орысша.",
+    who_h: "Кімдерге лайық",
+    sec1: "Сұлулық салоны", sec2: "Барбершоп", sec3: "Тырнақ студиясы", sec4: "Косметология", sec5: "Тіс клиникасы", sec6: "Автосервис және детейлинг", sec7: "Оқу орталығы", sec8: "Тазалау қызметі",
+    price_h: "Бағасы", per: "/ай",
+    p1_name: "Базалық", p1_price: "10 000", p1_d: "Дәл демодағыдай батырмалы бот.",
+    p1_l1: "Бағалар, уақыт, мекенжай, жеңілдіктер", p1_l2: "Жазылу өтінімі сізге жетеді", p1_l3: "«Әкімші» батырмасы", p1_l4: "Бағаларды жаңарту тегін",
+    terms_h: "Шарттары",
+    t1: "Орнату тегін", t2: "7 күн тегін сынақ", t3: "Келісім кемінде 3 айға", t4: "WhatsApp-тың өз ақысы бөлек: айына 1 000 хабар тегін, одан кейін бір хабарға ≈ 8 ₸",
+    join_h: "Қалай қосыламыз",
+    j1_t: "Ақпарат", j1_d: "Қызметтер, бағалар, жұмыс уақыты, мекенжай, жиі қойылатын сұрақтар.",
+    j2_t: "Баптау", j2_d: "Мәзірді жасап, тексеріп, сізге телефонда көрсетемін.",
+    j3_t: "Қосу", j3_d: "Сіз Facebook арқылы кіріп, WhatsApp Business-те QR-ды сканерлейсіз. Шамамен 10 минут, қалғанын өзім жасаймын.",
+    join_note: "Ақпарат толық болса, бот 2–3 жұмыс күнінде дайын.",
+    faq_h: "Жиі сұрақтар",
+    q1: "Нөмір бұғатталып қалмай ма?", a1: "Бот Meta-ның ресми API-і арқылы, WhatsApp рұқсат еткен жолмен жұмыс істейді. Бот клиентке тек ол өзі жазғанда жауап береді, жаппай хабар таратпайды.",
+    q2: "Клиент мәзірде жоқ сұрақ жазса?", a2: "Базалық бот мәзірді қайта көрсетеді. Клиент «Әкімші» батырмасын басса, сізге хабар келеді, ал сіз оған өзіңіз жазасыз.",
+    q3: "Ботты тоқтатуға бола ма?", a3: "Иә. Чатқа өзіңіз жазсаңыз, бот сол клиентке үндемейді. Толық тоқтатқыңыз келсе, маған жазыңыз, сол күні өшіремін.",
+    q4: "Бағаларым өзгерсе ше?", a4: "Жаңа бағаларды жіберсеңіз, сол күні жаңартамын. Бұл айлық ақыға кіреді.",
+    contact_h: "Тегін сынақты бастаңыз", contact_d: "WhatsApp-қа жазыңыз: бизнесіңіздің түрі және хабарласуға ыңғайлы уақыт.",
+    copy: "Нөмірді көшіру", copied: "Көшірілді", open_wa: "WhatsApp-та ашу",
+    phone_soon: "Байланыс нөмірі жақында қосылады.", footer: "JasaBot · Қазақстан"
+  },
+  ru: {
+    nav_how: "Как это работает", nav_price: "Цена", nav_faq: "Вопросы",
+    hero_eyebrow: "Для сферы услуг по всему Казахстану",
+    hero_h1: "Бот, который отвечает вашим клиентам в WhatsApp даже ночью",
+    hero_lead: "Сообщает цены, график работы и адрес. Принимает запись и передаёт заявку вам. Ваш номер и приложение WhatsApp Business остаются прежними.",
+    hero_btn: "7 дней бесплатно", hero_btn2: "Посмотреть демо",
+    fact1: "Подключение бесплатно", fact2: "10 000 ₸/мес", fact3: "Официальный WhatsApp Business API",
+    demo_cap: "Пример: салон красоты «Ару». Нажимайте на кнопки.",
+    demo_note: "Салон вымышленный, цены для примера. Демо на казахском языке.",
+    demo_reset: "Сначала",
+    owner_title: "На телефоне владельца салона", owner_empty: "Когда клиент запишется, заявка появится здесь.",
+    how_h: "Как это работает",
+    how1_t: "Клиент пишет", how1_d: "На ваш номер WhatsApp, днём и ночью. Клиенту ничего не нужно устанавливать.",
+    how2_t: "Бот сразу отвечает", how2_d: "Меню с кнопками: цены, график и адрес, скидки, запись. Ответы берутся из вашей информации, бот ничего не придумывает.",
+    how3_t: "Вы получаете заявку", how3_d: "Заявка и вся переписка видны в WhatsApp Business на вашем телефоне. Если вы пишете клиенту сами, бот не вмешивается.",
+    f1_t: "Номер не меняется", f1_d: "Бот подключается к вашему текущему номеру WhatsApp Business. Клиенты пишут как раньше.",
+    f2_t: "Официально", f2_d: "Работает через официальный WhatsApp Business API от Meta. Бот отвечает, даже если ваш телефон выключен.",
+    f3_t: "Вы управляете", f3_d: "Вы можете сами написать в любой чат. Тогда бот несколько часов не пишет этому клиенту.",
+    f4_t: "Вашими словами", f4_d: "Меню и ответы составляем по вашей информации: на казахском или на русском.",
+    who_h: "Кому подходит",
+    sec1: "Салон красоты", sec2: "Барбершоп", sec3: "Ногтевая студия", sec4: "Косметология", sec5: "Стоматология", sec6: "Автосервис и детейлинг", sec7: "Учебный центр", sec8: "Клининг",
+    price_h: "Стоимость", per: "/мес",
+    p1_name: "Базовый", p1_price: "10 000", p1_d: "Бот с кнопками, как в демо.",
+    p1_l1: "Цены, график, адрес, скидки", p1_l2: "Заявки на запись приходят вам", p1_l3: "Кнопка «Администратор»", p1_l4: "Обновление цен бесплатно",
+    terms_h: "Условия",
+    t1: "Подключение бесплатно", t2: "7 дней бесплатного теста", t3: "Договор минимум на 3 месяца", t4: "Плата WhatsApp отдельно: 1 000 сообщений в месяц бесплатно, далее ≈ 8 ₸ за сообщение",
+    join_h: "Как подключиться",
+    j1_t: "Информация", j1_d: "Услуги, цены, график работы, адрес, частые вопросы.",
+    j2_t: "Настройка", j2_d: "Собираю меню, проверяю и показываю вам на телефоне.",
+    j3_t: "Подключение", j3_d: "Вы входите через Facebook и сканируете QR-код в WhatsApp Business. Около 10 минут, остальное делаю я.",
+    join_note: "Если информация полная, бот готов за 2–3 рабочих дня.",
+    faq_h: "Частые вопросы",
+    q1: "Номер не заблокируют?", a1: "Бот работает через официальный API от Meta, это разрешённый WhatsApp способ. Бот отвечает клиенту, только когда тот пишет сам, и не делает рассылок.",
+    q2: "Что если клиент спросит то, чего нет в меню?", a2: "Базовый бот снова покажет меню. Если клиент нажмёт «Администратор», вам придёт уведомление, и вы ответите сами.",
+    q3: "Можно ли остановить бота?", a3: "Да. Если вы пишете в чат сами, бот молчит для этого клиента. Чтобы отключить его полностью, напишите мне, отключу в тот же день.",
+    q4: "А если цены изменятся?", a4: "Пришлите новые цены, обновлю в тот же день. Это входит в абонентскую плату.",
+    contact_h: "Начните бесплатный тест", contact_d: "Напишите в WhatsApp: тип вашего бизнеса и удобное время для связи.",
+    copy: "Скопировать номер", copied: "Скопировано", open_wa: "Открыть WhatsApp",
+    phone_soon: "Номер для связи скоро появится.", footer: "JasaBot · Казахстан"
+  },
+  en: {
+    nav_how: "How it works", nav_price: "Pricing", nav_faq: "FAQ",
+    hero_eyebrow: "For service businesses across Kazakhstan",
+    hero_h1: "A WhatsApp bot that answers your customers, even at night",
+    hero_lead: "It shares prices, opening hours and the address, takes bookings and passes each request to you. Your number and your WhatsApp Business app stay the same.",
+    hero_btn: "Try it free for 7 days", hero_btn2: "See the demo",
+    fact1: "Free setup", fact2: "10,000 ₸/month", fact3: "Official WhatsApp Business API",
+    demo_cap: "Example: Aru beauty salon. Tap the buttons.",
+    demo_note: "The salon is fictional and prices are examples. The demo is in Kazakh.",
+    demo_reset: "Start over",
+    owner_title: "On the salon owner's phone", owner_empty: "When a customer books, the request appears here.",
+    how_h: "How it works",
+    how1_t: "A customer writes", how1_d: "To your WhatsApp number, day or night. Customers install nothing.",
+    how2_t: "The bot replies instantly", how2_d: "A button menu: prices, hours and address, discounts, booking. Answers come from your own information; the bot adds nothing of its own.",
+    how3_t: "You get the booking", how3_d: "The booking and the whole chat appear in WhatsApp Business on your phone. When you reply yourself, the bot steps back.",
+    f1_t: "Same number", f1_d: "The bot connects to your current WhatsApp Business number. Customers keep writing as before.",
+    f2_t: "Official API", f2_d: "Runs on Meta's official WhatsApp Business API. The bot replies even when your phone is off.",
+    f3_t: "You stay in control", f3_d: "Write in any chat yourself and the bot stays quiet with that customer for a few hours.",
+    f4_t: "In your words", f4_d: "We write the menu and answers from your information, in Kazakh or Russian.",
+    who_h: "Who it's for",
+    sec1: "Beauty salons", sec2: "Barbershops", sec3: "Nail studios", sec4: "Cosmetology", sec5: "Dental clinics", sec6: "Auto service & detailing", sec7: "Training centers", sec8: "Cleaning services",
+    price_h: "Pricing", per: "/month",
+    p1_name: "Basic", p1_price: "10,000", p1_d: "A button bot, just like the demo.",
+    p1_l1: "Prices, hours, address, discounts", p1_l2: "Booking requests sent to you", p1_l3: "“Admin” button", p1_l4: "Price updates included",
+    terms_h: "Terms",
+    t1: "Free setup", t2: "7-day free trial", t3: "Minimum 3-month contract", t4: "WhatsApp's own fees are separate: 1,000 messages a month free, then about 8 ₸ per message",
+    join_h: "How to get started",
+    j1_t: "Information", j1_d: "Services, prices, opening hours, address and common questions.",
+    j2_t: "Setup", j2_d: "I build the menu, test it and show it to you on your phone.",
+    j3_t: "Connection", j3_d: "You sign in with Facebook and scan a QR code in WhatsApp Business. About 10 minutes; I do the rest.",
+    join_note: "With complete information, the bot is ready in 2–3 business days.",
+    faq_h: "FAQ",
+    q1: "Could my number get blocked?", a1: "The bot uses Meta's official API, the route WhatsApp permits. It replies only when a customer writes first and never sends mass messages.",
+    q2: "What if a customer asks something that isn't in the menu?", a2: "The Basic bot shows the menu again. If the customer taps “Admin”, you get notified and reply yourself.",
+    q3: "Can I turn the bot off?", a3: "Yes. When you write in a chat, the bot stays quiet with that customer. To switch it off completely, message me and I'll do it the same day.",
+    q4: "What if my prices change?", a4: "Send me the new prices and I'll update them the same day. It's included in the monthly fee.",
+    contact_h: "Start your free trial", contact_d: "Message us on WhatsApp with your type of business and a good time to talk.",
+    copy: "Copy number", copied: "Copied", open_wa: "Open WhatsApp",
+    phone_soon: "Contact number coming soon.", footer: "JasaBot · Kazakhstan"
+  }
+};
+
+let lang = "kk";
+function applyLang(next) {
+  lang = T[next] ? next : "kk";
+  document.documentElement.lang = lang === "kk" ? "kk" : lang;
+  document.querySelectorAll("[data-i18n]").forEach(el => {
+    const v = T[lang][el.dataset.i18n];
+    if (v !== undefined) el.textContent = v;
+  });
+  document.querySelectorAll(".langs button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.lang === lang)));
+  try { localStorage.setItem("zhas-lang", lang); } catch (e) {}
+}
+document.querySelectorAll(".langs button").forEach(b => b.addEventListener("click", () => applyLang(b.dataset.lang)));
+
+/* ---------- contact ---------- */
+(function setupContact() {
+  const digits = CONTACT_PHONE.replace(/\D/g, "");
+  if (digits.length < 10) return;
+  document.getElementById("phone-num").textContent = CONTACT_PHONE;
+  document.getElementById("num-wrap").hidden = false;
+  document.getElementById("num-actions").hidden = false;
+  document.getElementById("num-soon").hidden = true;
+  document.getElementById("wa-link").href = "https://wa.me/" + digits;
+  const copyBtn = document.getElementById("copy");
+  copyBtn.addEventListener("click", () => {
+    const done = () => { copyBtn.textContent = T[lang].copied; setTimeout(() => (copyBtn.textContent = T[lang].copy), 1800); };
+    const fallback = () => {
+      const r = document.createRange(); r.selectNodeContents(document.getElementById("phone-num"));
+      const s = getSelection(); s.removeAllRanges(); s.addRange(r);
+    };
+    try { navigator.clipboard.writeText(CONTACT_PHONE).then(done, fallback); } catch (e) { fallback(); }
+  });
+})();
+
+/* ---------- demo: the same menu logic as the real bot (app/menu.py, businesses/aru-salon/menu.yaml) ---------- */
+const HOME = "🏠 Басты мәзір", BACK = "⬅️ Артқа";
+const BOOK = { title: "✍️ Жазылу", form: "booking" };
+const MENU = {
+  welcome: "Сәлеметсіз бе! «Ару» сұлулық салонына қош келдіңіз 🌸",
+  text: "Таңдаңыз 👇",
+  items: [
+    { title: "📋 Бағалар", text: "Қай қызмет?", items: [
+      { title: "Шаш", answer: "Әйелдер шашын қию — 5 000 ₸\nЕрлер шашын қию — 3 500 ₸\nБалалар (12 жасқа дейін) — 2 500 ₸\nБояу — 15 000 ₸-ден\nУкладка — 4 000 ₸", also: ["✍️ Жазылу"] },
+      { title: "Тырнақ", answer: "Классикалық маникюр — 4 000 ₸\nГель-лак маникюр — 7 000 ₸\nПедикюр — 8 000 ₸\nТырнақ ұзарту — 12 000 ₸", also: ["✍️ Жазылу"] },
+      { title: "Қас пен кірпік", answer: "Қасқа пішін беру — 2 500 ₸\nҚасты бояу — 2 000 ₸\nКірпік ұзарту — 10 000 ₸", also: ["✍️ Жазылу"] }
+    ]},
+    { title: "🕐 Уақыт, мекенжай", answer: "📍 Астана, Тұран даңғылы 25\nДс–Жм: 09:00–20:00\nСб: 10:00–18:00\nЖс: демалыс", also: ["✍️ Жазылу"] },
+    { title: "🎁 Жеңілдіктер", answer: "🎂 Туған күніңізде — 15%\n🎓 Студенттерге дүйсенбі мен сәрсенбі — 10%\nЖеңілдіктер бір-бірімен қосылмайды.", also: ["✍️ Жазылу"] },
+    BOOK,
+    { title: "📞 Әкімші", human: true }
+  ]
+};
+const FORM = [
+  { ask: "Қай қызметке жазыласыз?", label: "Қызмет", options: ["Шаш", "Тырнақ", "Қас пен кірпік"] },
+  { ask: "Қай күні?", label: "Күні", options: ["Бүгін", "Ертең", "Басқа күн"] },
+  { ask: "Қай уақытта? Мысалы: 15:00", label: "Уақыты", options: ["11:00", "15:00", "18:30"] }
+];
+const DONE = "Рахмет! Өтініміңіз қабылданды ✅\nӘкімші бос уақытты тексеріп, жақын арада растайды.";
+const HUMAN = "Жақсы, әкімшіге хабарладым, жақын арада жауап береді 🙏";
+const FALLBACK = "Кешіріңіз, мен мәзір арқылы жұмыс істеймін 🙏 Төмендегі батырмалардан таңдаңыз 👇";
+const GREET = ["сәлем", "салем", "салам", "сәлеметсіз", "саламатсыз", "привет", "здравствуйте", "добрый", "hello", "hi"];
+
+// parent map for BACK and global search
+const PARENT = new Map();
+(function walk(node) { (node.items || []).forEach(ch => { PARENT.set(ch, node); walk(ch); }); })(MENU);
+const ALL = [...PARENT.keys()];
+
+const reduceMotion = matchMedia("(prefers-reduced-motion: reduce)").matches;
+const logEl = document.getElementById("log");
+const ownerFeed = document.getElementById("owner-feed");
+const ownerEmpty = document.getElementById("owner-empty");
+let state;
+
+const norm = s => s.toLowerCase().replace(/[^\p{L}\p{N}\s:]/gu, "").replace(/\s+/g, " ").trim();
+const now = () => new Date().toLocaleTimeString("kk-KZ", { hour: "2-digit", minute: "2-digit", hour12: false });
+
+function disableOld() { logEl.querySelectorAll(".opt").forEach(b => (b.disabled = true)); }
+
+function addMsg(who, text, options) {
+  const m = document.createElement("div");
+  m.className = "msg " + who;
+  const b = document.createElement("div");
+  b.className = "bubble";
+  b.textContent = text;
+  const t = document.createElement("span");
+  t.className = "time"; t.textContent = now();
+  b.appendChild(t);
+  m.appendChild(b);
+  if (options && options.length) {
+    if (options.length <= 3) {
+      const g = document.createElement("div"); g.className = "opts";
+      options.forEach(o => g.appendChild(optButton(o)));
+      m.appendChild(g);
+    } else {
+      const g = document.createElement("div"); g.className = "opts";
+      const toggle = document.createElement("button");
+      toggle.type = "button"; toggle.className = "opt"; toggle.textContent = "☰ Таңдау";
+      const list = document.createElement("div"); list.className = "list"; list.hidden = true;
+      options.forEach(o => list.appendChild(optButton(o)));
+      toggle.addEventListener("click", () => { list.hidden = !list.hidden; toggle.hidden = true; scrollDown(); });
+      g.appendChild(toggle); g.appendChild(list);
+      m.appendChild(g);
+    }
+  }
+  logEl.appendChild(m);
+  scrollDown();
+}
+function optButton(label) {
+  const btn = document.createElement("button");
+  btn.type = "button"; btn.className = "opt"; btn.textContent = label;
+  btn.addEventListener("click", () => send(label));
+  return btn;
+}
+function scrollDown() { logEl.scrollTop = logEl.scrollHeight; }
+
+function botSay(text, options, after) {
+  state.shown = options || [];
+  if (reduceMotion) { addMsg("bot", text, options); after && after(); return; }
+  const ty = document.createElement("div");
+  ty.className = "typing"; ty.textContent = "жазып жатыр…";
+  logEl.appendChild(ty); scrollDown();
+  setTimeout(() => { ty.remove(); addMsg("bot", text, options); after && after(); }, 450);
+}
+
+const rootOptions = () => MENU.items.map(i => i.title);
+function showRoot(withWelcome) {
+  state.back = null; state.form = null;
+  botSay((withWelcome ? MENU.welcome + "\n\n" : "") + MENU.text, rootOptions());
+}
+function goBack() {
+  const to = state.back;
+  return !to || to === MENU ? showRoot(false) : open(to);
+}
+
+function open(node) {
+  const parent = PARENT.get(node);
+  if (node.items) {
+    state.back = parent;               // «Артқа» → осы бөлімнің ата-мәзірі
+    botSay(node.text, [...node.items.map(i => i.title), BACK, HOME]);
+  } else if (node.form) {
+    state.form = { step: 0, answers: [] };
+    botSay(FORM[0].ask, FORM[0].options);
+  } else if (node.human) {
+    botSay(HUMAN, [HOME]);
+    ownerNotice("🔔 Клиент әкімшімен сөйлескісі келеді", "Чатқа өзіңіз жазыңыз — бот бұл клиентке араласпайды.");
+  } else {
+    state.back = parent && parent !== MENU ? parent : null;   // «Артқа» → жауап тұрған бөлім
+    const opts = [...(node.also || [])];
+    if (state.back) opts.push(BACK);
+    opts.push(HOME);
+    botSay(node.answer, opts);
+  }
+}
+
+function ownerNotice(title, body) {
+  ownerEmpty.hidden = true;
+  document.getElementById("owner").classList.add("has-lead");
+  const c = document.createElement("div");
+  c.className = "lead-card";
+  const h = document.createElement("b"); h.textContent = title + " · " + now();
+  c.appendChild(h);
+  c.appendChild(document.createTextNode(body));
+  ownerFeed.prepend(c);
+  while (ownerFeed.children.length > 2) ownerFeed.lastChild.remove();
+}
+
+function findIn(options, text) {
+  const n = norm(text);
+  if (/^\d+$/.test(n)) return options[Number(n) - 1];
+  return options.find(o => norm(o) === n) || (n.length >= 3 ? options.find(o => norm(o).startsWith(n)) : undefined);
+}
+function nodeByTitle(title) { return ALL.find(n => n.title === title) || (title === BOOK.title ? BOOK : undefined); }
+
+function handle(text) {
+  const n = norm(text);
+  if (state.form) {
+    if (text === HOME) return showRoot(false);
+    const f = state.form;
+    f.answers.push(text.trim());
+    f.step += 1;
+    if (f.step < FORM.length) return botSay(FORM[f.step].ask, FORM[f.step].options);
+    const summary = FORM.map((s, i) => s.label + ": " + f.answers[i]).join("\n");
+    state.form = null;
+    state.back = null;
+    return botSay(DONE, [HOME], () => ownerNotice("🟢 Жаңа өтінім", "Клиент: +7 7•• ••• •• 12\n" + summary));
+  }
+  if (GREET.some(g => n.startsWith(g))) return showRoot(true);
+  if (text === HOME || n === "мәзір" || n === "меню") return showRoot(false);
+  if (text === BACK) return goBack();
+  const hit = findIn(state.shown, text);
+  if (hit === HOME) return showRoot(false);
+  if (hit === BACK) return goBack();
+  const node = hit ? nodeByTitle(hit) : ALL.find(x => n.length >= 3 && norm(x.title).startsWith(n));
+  if (node) return open(node);
+  state.back = null;
+  botSay(FALLBACK, rootOptions());
+}
+
+function send(text) {
+  if (!text.trim()) return;
+  disableOld();
+  addMsg("me", text);
+  handle(text);
+}
+
+function resetDemo() {
+  logEl.textContent = "";
+  ownerFeed.textContent = "";
+  ownerEmpty.hidden = false;
+  document.getElementById("owner").classList.remove("has-lead");
+  state = { back: null, shown: [], form: null };
+  addMsg("me", "Сәлем");
+  state.shown = rootOptions();
+  addMsg("bot", MENU.welcome + "\n\n" + MENU.text, rootOptions());
+}
+
+document.getElementById("compose").addEventListener("submit", e => {
+  e.preventDefault();
+  const inp = document.getElementById("say");
+  const v = inp.value; inp.value = "";
+  send(v);
+});
+document.getElementById("reset").addEventListener("click", resetDemo);
+
+let saved = "kk";
+try { saved = localStorage.getItem("zhas-lang") || "kk"; } catch (e) {}
+applyLang(saved);
+resetDemo();
+</script>
