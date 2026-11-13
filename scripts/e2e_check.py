@@ -281,7 +281,7 @@ last = graph_calls[-1]["json"]
 check("Базалық бот: сәлемге батырмалы мәзір (тізім) жіберілді",
       last.get("type") == "interactive" and last["interactive"]["type"] == "list"
       and last["interactive"]["action"]["sections"][0]["rows"][0]["title"] == "🤖 Бот не істейді")
-send("✅ Қосылу", "z2", pnid=biz(zhas), sender=zc, mtype="interactive")   # тізімнен басты
+send("📝 Қосылу", "z2", pnid=biz(zhas), sender=zc, mtype="interactive")   # тізімнен басты
 last = graph_calls[-1]["json"]
 check("Тізімнен таңдау түсінілді: форманың бірінші сұрағы", "Бизнесіңіздің түрі" in last["interactive"]["body"]["text"])
 send("Клиника", "z3", pnid=biz(zhas), sender=zc, mtype="interactive")

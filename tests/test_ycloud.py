@@ -10,6 +10,7 @@ from app.brain import Brain
 from app.businesses import Registry
 from app.config import get_settings
 from app.main import Deps, create_app
+from app.menu import MenuBot
 from app.rag import Hit
 from app.store import Store
 from app.whatsapp import parse_webhook
@@ -170,6 +171,21 @@ def test_bot_own_echo_does_not_pause(registry):
     post(client, inbound("Бот қанша?", wamid="w1"))
     post(client, echo("Орнату 30 000 ₸.", wamid="wamid.out1"))   # FakeWhatsApp берген id
     post(client, inbound("Ал айына ше?", wamid="w2"))
+    assert len(deps.wa.sent) == 2
+
+
+def test_owner_tapping_bot_button_does_not_pause(registry):
+    """Иесі бизнес телефонында боттың батырмасын басса — бот тоқтамайды. Өзі мәтін жазса — тоқтайды."""
+    client, deps = make_client(registry)
+    menu_zhas = replace(deps.registry.get("zhas-bot"), mode="menu")
+    deps.registry = Registry([menu_zhas, registry.get("aru-salon")])
+    deps.menu = MenuBot(deps.store)
+    post(client, inbound("Сәлем", wamid="w1"))
+    post(client, echo("💰 Бағасы", wamid="owner-tap"))          # батырманы басты
+    post(client, inbound("2", wamid="w2"))
+    assert len(deps.wa.sent) == 2
+    post(client, echo("Сәлем, мен Олжаспын", wamid="owner-text"))   # өзі жазды
+    post(client, inbound("Рахмет", wamid="w3"))
     assert len(deps.wa.sent) == 2
 
 

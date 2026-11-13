@@ -83,12 +83,27 @@ def parse_webhook(payload: dict) -> list[IncomingMessage]:
     return out
 
 
-def build_interactive(body: str, options: list[str], list_button: str = "Таңдау") -> dict:
+LIST_LABELS = {"kk": ("Таңдау", "Мәзір"), "ru": ("Выбрать", "Меню")}
+
+# True — ≤3 нұсқа жылдам жауап батырмасы болып шығады (клиентке ыңғайлы). Ескерту: батырмалар
+# иесінің телефонында да басылады және клиентке хабар болып кетеді; тізімде бұл болмайды.
+USE_REPLY_BUTTONS = True
+
+
+def build_interactive(body: str, options: list[str], list_button: str | None = None,
+                      reply_buttons: bool | None = None) -> dict:
     """Батырмалар (≤3 нұсқа) немесе тізім (4–10 нұсқа). Meta мен YCloud-та формат бірдей.
-    Шектеулер: мәтін ≤1024, батырма атауы ≤20, тізім жолы ≤24, жол саны ≤10."""
+    Шектеулер: мәтін ≤1024, батырма атауы ≤20, тізім жолы ≤24, жол саны ≤10.
+    Тізім батырмасының тілі хабар мәтінінің тіліне қарай таңдалады (Таңдау / Выбрать)."""
+    from app.menu import detect_lang
+
     body = (body or "👇")[:1024]
+    button, section = LIST_LABELS[detect_lang(body)]
+    list_button = list_button or button
     ids = [f"opt{i}" for i in range(len(options))]
-    if len(options) <= 3:
+    if reply_buttons is None:
+        reply_buttons = USE_REPLY_BUTTONS
+    if reply_buttons and len(options) <= 3:
         return {
             "type": "button",
             "body": {"text": body},
@@ -98,7 +113,7 @@ def build_interactive(body: str, options: list[str], list_button: str = "Таң�
         "type": "list",
         "body": {"text": body},
         "action": {"button": list_button, "sections": [
-            {"title": "Мәзір", "rows": [{"id": i, "title": o[:24]} for i, o in zip(ids[:10], options[:10])]}
+            {"title": section, "rows": [{"id": i, "title": o[:24]} for i, o in zip(ids[:10], options[:10])]}
         ]},
     }
 

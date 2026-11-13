@@ -88,6 +88,16 @@ def handle_menu(deps: Deps, business, msg: IncomingMessage) -> None:
             deps.notifier.handoff(business, msg.sender, msg.name, history, "human")
 
 
+def _is_own_button_tap(deps: Deps, business, msg: IncomingMessage) -> bool:
+    """Echo мәтіні клиентке соңғы көрсетілген батырмалардың біріне дәл сәйкес пе.
+    WhatsApp Business-те боттың батырмалары иесінің телефонында да басылады — оны иесінің жазуы деп санамаймыз."""
+    if not msg.text:
+        return False
+    state = deps.store.get_state(business.id, msg.sender) or {}
+    text = " ".join(msg.text.split())
+    return any(text == " ".join(str(o).split()) for o in state.get("shown") or [])
+
+
 def handle_message(deps: Deps, msg: IncomingMessage) -> None:
     """Бір хабарламаны өңдеу. Webhook жауабынан кейін фонда іске қосылады."""
     if not msg.message_id or not deps.store.first_time(msg.message_id):
@@ -108,6 +118,10 @@ def handle_message(deps: Deps, msg: IncomingMessage) -> None:
     if msg.kind == "echo":
         # Бизнестің нөмірінен кеткен хабар. Бот өзі жіберген болса — елемейміз.
         if not deps.store.was_sent_by_bot(msg.ids or (msg.message_id,)):
+            if _is_own_button_tap(deps, business, msg):
+                # Иесі бизнес телефонында боттың батырмасын басып қалды — бұл әдейі жазу емес, тоқтамаймыз.
+                log.info("[%s] иесі боттың батырмасын басты ('%s') — елемеймін", business.id, msg.text)
+                return
             deps.store.pause(business.id, msg.sender, deps.settings.owner_pause_hours)
             if msg.text:
                 deps.store.add(business.id, msg.sender, "assistant", msg.text)

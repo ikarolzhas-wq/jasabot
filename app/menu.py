@@ -358,7 +358,9 @@ class MenuBot:
         if i + 1 < len(steps):
             nf = {**f, "step": i + 1, "answers": answers}
             return self._reply(m, business, user, self._ask(m, f["name"], i + 1), back=None, form=nf)
-        summary = "\n".join(f"{s.get('label') or s['ask']}: {a}" for s, a in zip(steps, answers))
+        # confirm: true — тек растау батырмасы ("Менеджерге жіберу"), өтінімге жазылмайды
+        summary = "\n".join(f"{s.get('label') or s['ask']}: {a}"
+                            for s, a in zip(steps, answers) if not s.get("confirm"))
         if m.lang != "kk":
             summary = f"Тілі: {m.lang}\n" + summary
         default_done = "Спасибо! Заявка принята ✅" if m.lang == "ru" else "Рахмет! Өтініміңіз қабылданды ✅"
