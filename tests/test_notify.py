@@ -92,3 +92,13 @@ def test_no_owner_number_no_whatsapp(salon):
     wa = FakeWA()
     Notifier(http=FakeHTTP(), whatsapp=wa).lead(replace(salon, whatsapp_number="+7702"), "7701", "", HISTORY)
     assert wa.templates == [] and wa.texts == []
+
+
+def test_plus_prefixed_customer_number_is_normalized(salon):
+    """YCloud sender "+7778..." келеді — хабарда "++" және "wa.me/+" болмауы керек."""
+    wa = FakeWA(template_fails=True)
+    biz = replace(salon, whatsapp_number="+77021143855", notify_whatsapp="+77770001122")
+    Notifier(http=FakeHTTP(), whatsapp=wa).lead(biz, "+77782579068", "Olzhas", LEAD_HISTORY)
+    [(_, _, body)] = wa.texts
+    assert "++" not in body and "Olzhas, +77782579068" in body
+    assert "https://wa.me/77782579068" in body
