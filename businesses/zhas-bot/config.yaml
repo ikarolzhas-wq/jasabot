@@ -13,6 +13,8 @@ mode: menu
 phone_number_id: "ZHAS_BOT_PHONE_NUMBER_ID"   # тек PROVIDER=meta болса керек
 # YCloud режимінде бот бизнесті осы нөмір бойынша таниды (JasaBot SIM-картасының нөмірі)
 whatsapp_number: "+7 702 114 38 55"
+# Өтінім хабары келетін иесінің ЖЕКЕ нөмірі (бизнес нөмірі емес). YCloud-та "jasabot_new_lead" шаблоны бекітілген болуы керек.
+notify_whatsapp: "+77782579068"
 
 # Өз нөміріңді жаз
 contact_phone: "+7 702 114 38 55"

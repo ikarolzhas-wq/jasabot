@@ -109,6 +109,13 @@ class YCloudClient:
         return self._send({"from": business_number, "to": to, "type": "interactive",
                            "interactive": build_interactive(body, options)})
 
+    def send_template(self, business_number: str, to: str, name: str, language: str, params: list[str]) -> list[str]:
+        """Бекітілген шаблон (бизнес бірінші жазатын хабар үшін — мысалы иесіне "жаңа өтінім")."""
+        return self._send({"from": business_number, "to": to, "type": "template", "template": {
+            "name": name, "language": {"code": language},
+            "components": [{"type": "body", "parameters": [{"type": "text", "text": p} for p in params]}],
+        }})
+
     def mark_read(self, business_number: str, message_id: str) -> None:
         """YCloud құжаттамасында "оқылды" белгісі көрсетілмеген — әзірге ештеңе істемейміз."""
         return None
@@ -138,6 +145,9 @@ class YCloudRouter:
 
     def send_options(self, business_number: str, to: str, body: str, options: list[str]) -> list[str]:
         return self._client(business_number).send_options(business_number, to, body, options)
+
+    def send_template(self, business_number: str, to: str, name: str, language: str, params: list[str]) -> list[str]:
+        return self._client(business_number).send_template(business_number, to, name, language, params)
 
     def mark_read(self, business_number: str, message_id: str) -> None:
         return self._client(business_number).mark_read(business_number, message_id)

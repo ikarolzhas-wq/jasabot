@@ -254,6 +254,11 @@ def build_deps() -> Deps:
     store = Store(settings.data_dir / "bot.sqlite3")
     store.prune(days=30)
     kb = KnowledgeBase(settings.data_dir / "chroma")
+    wa = (
+        build_ycloud(settings, registry)
+        if settings.provider == "ycloud"
+        else WhatsAppClient(settings.access_token, settings.graph_version, base_url=settings.graph_base_url)
+    )
     return Deps(
         settings=settings,
         registry=registry,
@@ -265,13 +270,13 @@ def build_deps() -> Deps:
             max_distance=settings.max_distance,
             store=store,
         ),
-        wa=(
-            build_ycloud(settings, registry)
-            if settings.provider == "ycloud"
-            else WhatsAppClient(settings.access_token, settings.graph_version, base_url=settings.graph_base_url)
-        ),
+        wa=wa,
         store=store,
-        notifier=Notifier(settings.telegram_bot_token, settings.telegram_chat_id, base_url=settings.telegram_api_base),
+        notifier=Notifier(
+            settings.telegram_bot_token, settings.telegram_chat_id, base_url=settings.telegram_api_base,
+            whatsapp=wa if settings.provider == "ycloud" else None,
+            template=settings.notify_template, template_lang=settings.notify_template_lang,
+        ),
         menu=MenuBot(store),
     )
 

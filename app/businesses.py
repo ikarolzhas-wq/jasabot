@@ -29,6 +29,7 @@ class Business:
     whatsapp_number: str = ""    # бизнестің WhatsApp нөмірі, мысалы "+77001234567" (YCloud режимі үшін)
     mode: str = "ai"             # "ai" — Claude (еркін сөйлесу), "menu" — базалық бот (menu.yaml)
     ycloud_account: str = "default"   # клиенттің өз YCloud аккаунты (.env: YCLOUD_API_KEY_<АТЫ>)
+    notify_whatsapp: str = ""    # өтінім хабары келетін иесінің/әкімшінің ЖЕКЕ нөмірі (бизнес нөмірі емес)
 
     def knowledge_text(self) -> str:
         return self.knowledge_path.read_text(encoding="utf-8")
@@ -54,6 +55,7 @@ def load_business(folder: Path) -> Business:
         whatsapp_number=str(cfg.get("whatsapp_number") or ""),
         mode=str(cfg.get("mode") or "ai").strip().lower(),
         ycloud_account=account_name(str(cfg.get("ycloud_account") or "default")),
+        notify_whatsapp=str(cfg.get("notify_whatsapp") or ""),
     )
 
 
