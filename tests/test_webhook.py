@@ -121,3 +121,11 @@ def test_lead_notifies_owner_with_conversation(registry):
     assert business.id == "aru-salon" and customer == "77011112233" and name == "Айгүл"
     assert history[0]["content"] == "Маникюрге жазылғым келеді, ертең 15:00"
     assert deps.notifier.calls == []
+
+
+def test_health_answers_head_and_root(registry):
+    """UptimeRobot HEAD сұрауымен тексереді — 405/404 болмауы керек."""
+    client, _ = make_client(registry)
+    assert client.head("/health").status_code == 200
+    assert client.get("/").status_code == 200
+    assert client.head("/").status_code == 200

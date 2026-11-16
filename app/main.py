@@ -188,7 +188,9 @@ def create_app(deps_factory) -> FastAPI:
 
     app = FastAPI(title="WhatsApp AI бот", lifespan=lifespan)
 
-    @app.get("/health")
+    # HEAD та керек: UptimeRobot тегін тарифте HEAD сұрауымен тексереді (GET-тің өзі жеткіліксіз)
+    @app.api_route("/", methods=["GET", "HEAD"])
+    @app.api_route("/health", methods=["GET", "HEAD"])
     def health():
         return {"status": "ok", "businesses": [b.id for b in deps().registry.all()]}
 
