@@ -89,6 +89,7 @@ class MenuReply:
     handoff: bool = False
     reason: str = "menu"      # welcome, menu, answer, fallback, form, lead, human
     summary: str = ""         # форма жауаптары (иесіне жіберіледі)
+    document: str = ""        # static/ ішіндегі файл (мысалы PDF) — жауаптың алдында жіберіледі
 
 
 def _norm(s: str) -> str:
@@ -339,7 +340,9 @@ class MenuBot:
             return self._reply(m, business, user, MenuReply(m.human_text, [m.home], handoff=True, reason="human"),
                                back=None)
         opts = list(dict.fromkeys(list(item.get("also") or []) + ([m.back] if parent else []) + [m.home]))
-        return self._reply(m, business, user, MenuReply(str(item["answer"]).strip(), opts, reason="answer"),
+        return self._reply(m, business, user,
+                           MenuReply(str(item["answer"]).strip(), opts, reason="answer",
+                                     document=str(item.get("document") or "")),
                            back=parent if parent else None)
 
     @staticmethod

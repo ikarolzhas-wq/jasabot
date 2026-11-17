@@ -170,6 +170,14 @@ class WhatsAppClient:
         )
         return [m.get("id", "") for m in data.get("messages", []) if m.get("id")]
 
+    def send_document(self, phone_number_id: str, to: str, link: str, filename: str) -> list[str]:
+        """Файл (PDF т.б.) жібереді."""
+        data = self._post(phone_number_id, {
+            "messaging_product": "whatsapp", "recipient_type": "individual", "to": to,
+            "type": "document", "document": {"link": link, "filename": filename},
+        })
+        return [m.get("id", "") for m in data.get("messages", []) if m.get("id")]
+
     def mark_read(self, phone_number_id: str, message_id: str) -> None:
         """Клиентке көк құсбелгі көрсетеді (хабарлама оқылды). Бұл ақылы емес."""
         try:

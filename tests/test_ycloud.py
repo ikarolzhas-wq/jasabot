@@ -280,3 +280,16 @@ def test_build_ycloud_reports_missing_keys(registry):
         build_ycloud(settings, Registry([aru]))
     ok = replace(settings, ycloud_accounts={"aru": ("K2", SECRET2)})
     assert build_ycloud(ok, Registry([aru])) is not None
+
+
+def test_menu_document_is_sent_before_buttons(registry, tmp_path, monkeypatch):
+    """«📄 Шарттар» → алдымен PDF сілтемесі (PUBLIC_URL/files/...), сосын батырмалар."""
+    client, deps = make_client(registry)
+    deps.registry = Registry([replace(deps.registry.get("zhas-bot"), mode="menu"), registry.get("aru-salon")])
+    deps.menu = MenuBot(deps.store)
+    deps.settings = replace(deps.settings, public_url="https://jasabot.onrender.com")
+    docs = []
+    deps.wa.send_document = lambda number, to, link, filename: docs.append((to, link, filename)) or ["d1"]
+    post(client, inbound("Сәлем", wamid="w1"))
+    post(client, inbound("📄 Шарттар", wamid="w2"))
+    assert docs == [(docs[0][0], "https://jasabot.onrender.com/files/jasabot-sharttar.pdf", "jasabot-sharttar.pdf")]

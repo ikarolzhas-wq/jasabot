@@ -13,9 +13,11 @@ Coexistence: бизнес иесі WhatsApp Business қосымшасынан к
 import logging
 from contextlib import asynccontextmanager
 from dataclasses import dataclass, replace
+from pathlib import Path
 
 from fastapi import BackgroundTasks, FastAPI, Request, Response
 from fastapi.responses import PlainTextResponse
+from fastapi.staticfiles import StaticFiles
 
 from app.brain import Brain
 from app.menu import MenuBot, render_text
@@ -70,6 +72,22 @@ def send_options(deps: Deps, msg: IncomingMessage, text: str, options: list[str]
     deps.store.mark_sent(ids or [])
 
 
+STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
+
+
+def send_document(deps: Deps, msg: IncomingMessage, filename: str) -> None:
+    """static/ ішіндегі файлды клиентке жібереді. Сыртқы мекенжай белгісіз не файл жоқ болса — өткізіп жібереді."""
+    base = deps.settings.public_url
+    if not base or not (STATIC_DIR / filename).is_file():
+        log.warning("Файл жіберілмеді: %s (PUBLIC_URL=%r)", filename, base)
+        return
+    try:
+        ids = deps.wa.send_document(msg.phone_number_id, msg.sender, f"{base}/files/{filename}", filename)
+        deps.store.mark_sent(ids or [])
+    except Exception:
+        log.exception("Файл жіберу қатесі: %s", filename)
+
+
 def handle_menu(deps: Deps, business, msg: IncomingMessage) -> None:
     """Базалық бот: мәзір, батырмалар, формалар. Claude шақырылмайды."""
     try:
@@ -78,6 +96,8 @@ def handle_menu(deps: Deps, business, msg: IncomingMessage) -> None:
         log.exception("Мәзір қатесі")
         send(deps, msg, f"Кешіріңіз, қазір жауап бере алмай тұрмын. Байланыс: {business.contact_phone}")
         return
+    if reply.document:
+        send_document(deps, msg, reply.document)
     send_options(deps, msg, reply.text, reply.options)
     log.info("[%s] %s → %s", business.id, (msg.text or "[медиа]")[:60], reply.reason)
     if reply.lead or reply.handoff:
@@ -187,6 +207,8 @@ def create_app(deps_factory) -> FastAPI:
         yield
 
     app = FastAPI(title="WhatsApp AI бот", lifespan=lifespan)
+    if STATIC_DIR.is_dir():
+        app.mount("/files", StaticFiles(directory=STATIC_DIR), name="files")   # PDF т.б. (WhatsApp сілтеме арқылы алады)
 
     # HEAD та керек: UptimeRobot тегін тарифте HEAD сұрауымен тексереді (GET-тің өзі жеткіліксіз)
     @app.api_route("/", methods=["GET", "HEAD"])

@@ -109,6 +109,11 @@ class YCloudClient:
         return self._send({"from": business_number, "to": to, "type": "interactive",
                            "interactive": build_interactive(body, options)})
 
+    def send_document(self, business_number: str, to: str, link: str, filename: str) -> list[str]:
+        """Файл (PDF т.б.) жібереді. link — сыртқы https мекенжай."""
+        return self._send({"from": business_number, "to": to, "type": "document",
+                           "document": {"link": link, "filename": filename}})
+
     def send_template(self, business_number: str, to: str, name: str, language: str, params: list[str]) -> list[str]:
         """Бекітілген шаблон (бизнес бірінші жазатын хабар үшін — мысалы иесіне "жаңа өтінім")."""
         return self._send({"from": business_number, "to": to, "type": "template", "template": {
@@ -145,6 +150,9 @@ class YCloudRouter:
 
     def send_options(self, business_number: str, to: str, body: str, options: list[str]) -> list[str]:
         return self._client(business_number).send_options(business_number, to, body, options)
+
+    def send_document(self, business_number: str, to: str, link: str, filename: str) -> list[str]:
+        return self._client(business_number).send_document(business_number, to, link, filename)
 
     def send_template(self, business_number: str, to: str, name: str, language: str, params: list[str]) -> list[str]:
         return self._client(business_number).send_template(business_number, to, name, language, params)

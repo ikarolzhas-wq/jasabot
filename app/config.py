@@ -42,6 +42,7 @@ class Settings:
     telegram_bot_token: str
     telegram_chat_id: str      # ортақ чат (бизнесте өз telegram_chat_id болмаса)
     telegram_api_base: str
+    public_url: str = ""      # серверің сыртқы мекенжайы (файл сілтемелері үшін). Render өзі береді.
     notify_template: str = "jasabot_new_lead"   # иесіне "жаңа өтінім" WhatsApp шаблоны (YCloud-та бекітілген)
     notify_template_lang: str = "kk"
 
@@ -94,6 +95,7 @@ def get_settings() -> Settings:
         telegram_bot_token=os.getenv("TELEGRAM_BOT_TOKEN", ""),
         telegram_chat_id=os.getenv("TELEGRAM_CHAT_ID", ""),
         telegram_api_base=os.getenv("TELEGRAM_API_BASE", "https://api.telegram.org"),
+        public_url=(os.getenv("PUBLIC_URL") or os.getenv("RENDER_EXTERNAL_URL") or "").rstrip("/"),
         notify_template=os.getenv("NOTIFY_TEMPLATE", "jasabot_new_lead"),
         notify_template_lang=os.getenv("NOTIFY_TEMPLATE_LANG", "kk"),
         ycloud_accounts=ycloud_accounts_from_env(),

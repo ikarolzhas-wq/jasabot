@@ -56,7 +56,7 @@ def test_duplicate_title_rejected():
 def test_first_message_shows_welcome_and_menu(zhas):
     r = MenuBot(Store()).answer(zhas, "u1", "Сәлем, бот қанша тұрады?")
     assert r.reason == "welcome" and "JasaBot" in r.text
-    assert r.options[0] == "🤖 Бот не істейді" and len(r.options) == 7
+    assert r.options[0] == "🤖 Бот не істейді" and len(r.options) == 8
     assert r.options[-1] == "🇷🇺 Русский"
 
 
@@ -64,16 +64,16 @@ def test_choose_by_number_and_by_title(zhas):
     bot = MenuBot(Store())
     r = chat(bot, zhas, "u1", "сәлем", "2")
     assert r.reason == "answer" and "10 000" in r.text and "25 000" not in r.text   # тек базалық тариф
-    assert r.options == ["🎁 Тегін сынақ", "📝 Қосылу", HOME]
+    assert r.options == ["📄 Шарттар", "📝 Қосылу", HOME]
     r2 = chat(bot, zhas, "u2", "сәлем", "бағасы")
     assert r2.text == r.text
 
 
 def test_numbers_refer_to_buttons_on_screen(zhas):
-    """Жауаптан кейін "1" — экрандағы бірінші батырма (Тегін сынақ), басты мәзірдің біріншісі емес."""
+    """Жауаптан кейін "1" — экрандағы бірінші батырма (Шарттар), басты мәзірдің біріншісі емес."""
     bot = MenuBot(Store())
     r = chat(bot, zhas, "u1", "сәлем", "2", "1")
-    assert "7 күн" in r.text
+    assert r.document == "jasabot-sharttar.pdf" and "құжат" in r.text
 
 
 def test_connect_form_creates_lead(zhas):
@@ -253,3 +253,11 @@ def test_russian_form_lead(zhas):
     assert r.options == ["📨 Отправить", "🏠 Главное меню"]
     r = bot.answer(zhas, "u1", "📨 Отправить")
     assert r.lead and "отправлена менеджеру" in r.text and "Тілі: ru" in r.summary and "Клиника" in r.summary
+
+
+def test_terms_item_sends_pdf_in_both_languages(zhas):
+    bot = MenuBot(Store())
+    r = chat(bot, zhas, "u1", "Сәлем", "📄 Шарттар")
+    assert r.document == "jasabot-sharttar.pdf" and r.options == ["📝 Қосылу", HOME]
+    r = chat(bot, zhas, "u2", "Здравствуйте", "📄 Условия")
+    assert r.document == "jasabot-sharttar.pdf" and "Документ" in r.text
